@@ -1,10 +1,11 @@
 import os
 from slack_sdk import rtm
-from chatgptbot import chat_gpt
-from bardbot import bard_bot
+from chatgpt_bot import chat_gpt
+from bard_bot import bard_bot
+from slack_bot_api import get_channel_id, get_message_ts
 
 # slack bot user token
-bot_token = os.environ['OPENAI_API_KEY']
+bot_token = os.environ['SLACK_BOT_TOKEN']
 rtm_client = rtm.RTMClient(token=bot_token)
 
 # ChatGPT Bot
@@ -29,27 +30,10 @@ rtm_client = rtm.RTMClient(token=bot_token)
 #     except Exception as err:
 #         print('Error:', err)
 
-def get_channel_id(client):
-    result = client.conversations_list(limit=1000)
-    channels = result.data['channels']
-    channel = list(filter(lambda c: c["name"] == "chatgpt-test-room", channels))[0]
-    channel_id = channel["id"]
-    return channel_id
-
-
-def get_message_ts(client, channel_id, query):
-    result = client.conversations_history(channel=channel_id)
-    messages = result.data['messages']
-    print(messages)
-    message = list(filter(lambda m: m["text"]==query, messages))[0]
-    message_ts = message["ts"]
-    return message_ts
-
 
 # Bard Bot
 @rtm_client.run_on(event='message')
 def bard_chat_bot(**payload):
-    print('payload:', payload)
     data = payload.get('data')
     web_client = payload.get('web_client')
     if not (data and web_client):
@@ -58,18 +42,18 @@ def bard_chat_bot(**payload):
     subtype = data.get('subtype', '')
     message = data.get('text', '')
     channel_id = get_channel_id(web_client)
-    print(channel_id)
 
     try:
+        message_ts = get_message_ts(web_client, channel_id, message)
         if bot_id == '' and subtype != 'bot_message':
             if not channel_id:
                 channel_id = data['channel']
             text = message.split('>')[-1].strip()
 
             response = bard_bot(text)
-            web_client.chat_postMessage(channel=channel_id, text=response)
+            web_client.chat_postMessage(channel=channel_id, thread_ts=message_ts, text=response)
     except Exception as err:
-        print('Error:', err)
+        print('bard_chat_bot error:', err)
 
 
 # test only
@@ -85,4 +69,4 @@ if __name__ == '__main__':
         rtm_client.start()
         # chatbot_test()
     except Exception as err:
-        print(err)
+        print("Main Error:", err)

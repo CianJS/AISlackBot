@@ -2,7 +2,7 @@ import os
 import openai
 
 # OpenAI API Key
-openai_api_key = os.environ['SLACK_BOT_TOKEN']
+openai_api_key = os.environ['OPENAI_API_KEY']
 
 
 def chat_gpt(prompt, api_key=openai_api_key):
